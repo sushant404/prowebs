@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /pages/nature-finance.html
+Disallow: /pages/venture-trends.html
+Disallow: /pages/sdg-gap.html
+Disallow: /pages/ai-capital.html
+Disallow: /pages/impact-funds.html
+
+Sitemap: https://www.sushantshrestha.com/sitemap.xml
