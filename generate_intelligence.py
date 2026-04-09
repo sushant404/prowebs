@@ -14,6 +14,8 @@ import re
 from datetime import date, datetime, timezone
 from pathlib import Path
 
+import time
+
 import anthropic
 
 MODEL = "claude-opus-4-5"
@@ -55,15 +57,161 @@ Write for sophisticated investors and
 fund managers, not for a general
 audience. Today's date is {date}."""
 
+VC_TRENDS_PROMPT = """You are a venture capital analyst.
+Generate a structured intelligence
+briefing on current venture capital
+trends. Include:
+
+1. MARKET PULSE: 3-4 key developments
+in global venture capital in the past
+30 days — deal volumes, sector shifts,
+notable raises
+
+2. CAPITAL FLOWS: Where institutional
+and LP capital is moving — which
+sectors are attracting investment and
+which are being avoided
+
+3. SIGNAL vs NOISE: One trend being
+overhyped and one genuine emerging
+opportunity in venture
+
+4. SECTOR HEAT MAP: Rate these sectors
+as Hot, Warm, or Cooling right now:
+AI Infrastructure, Climate Tech,
+Biotech, Fintech, Defense Tech,
+Consumer. One sentence explanation
+for each.
+
+5. FUND MANAGER TAKE: A brief
+analytical perspective on what this
+means for emerging and impact fund
+managers specifically
+
+Write for sophisticated fund managers
+and institutional allocators.
+Today's date is {date}."""
+
+SDG_GAP_PROMPT = """You are an impact finance analyst
+specializing in SDG-aligned capital.
+Generate a structured intelligence
+briefing on SDG investment gaps.
+Include:
+
+1. MARKET PULSE: Current state of
+SDG-aligned finance globally —
+key developments in the past 30 days
+
+2. CAPITAL FLOWS: Which SDGs are
+attracting capital and which are
+critically underfunded — be specific
+with percentages or dollar figures
+where possible
+
+3. SIGNAL vs NOISE: One SDG narrative
+being overhyped and one genuine
+funding opportunity being missed
+
+4. GAP ANALYSIS: The three most
+underfunded SDGs right now with a
+one-sentence explanation of why
+capital is not flowing there
+
+5. ALLOCATOR TAKE: What this means
+for impact-first fund managers and
+institutional allocators seeking
+SDG alignment
+
+Write for sophisticated impact
+investors and fund managers.
+Today's date is {date}."""
+
+AI_CAPITAL_PROMPT = """You are a technology venture analyst.
+Generate a structured intelligence
+briefing on AI and emerging tech
+capital flows. Include:
+
+1. MARKET PULSE: 3-4 key developments
+in AI and emerging tech funding in
+the past 30 days
+
+2. CAPITAL FLOWS: Where institutional
+capital is concentrating in AI —
+infrastructure, applications, safety,
+or adjacent technologies
+
+3. SIGNAL vs NOISE: One AI investment
+theme being overhyped and one genuine
+emerging opportunity
+
+4. REGULATORY SIGNALS: Key regulatory
+developments affecting AI investment
+thesis and fund strategy globally
+
+5. FUND MANAGER TAKE: What this means
+for venture and impact fund managers
+incorporating AI into their thesis
+
+Write for sophisticated fund managers
+and technology investors.
+Today's date is {date}."""
+
+IMPACT_FUNDS_PROMPT = """You are an impact investing analyst.
+Generate a structured intelligence
+briefing on the global impact fund
+landscape. Include:
+
+1. MARKET PULSE: Key developments in
+impact fund raising, closing, and
+deploying in the past 30 days
+
+2. CAPITAL FLOWS: LP appetite for
+impact funds — which strategies are
+attracting capital and which are
+facing headwinds
+
+3. SIGNAL vs NOISE: One impact fund
+trend being overhyped and one genuine
+structural shift in how impact capital
+is being deployed
+
+4. MANAGER LANDSCAPE: Notable emerging
+managers, first-time funds, or
+established managers making notable
+moves in the impact space
+
+5. ALLOCATOR TAKE: What this means
+for LPs evaluating impact fund
+managers and for GPs raising
+impact-focused vehicles
+
+Write for sophisticated LPs,
+fund-of-funds managers, and emerging
+impact GPs.
+Today's date is {date}."""
+
 JSON_INSTRUCTION = """Now respond with ONLY valid JSON (no markdown fences, no prose outside JSON) using this exact structure:
-{"sections":[
-  {"title":"MARKET PULSE","body":"plain text, 2-4 sentences"},
-  {"title":"CAPITAL FLOWS","body":"plain text, 2-4 sentences"},
-  {"title":"SIGNAL vs NOISE","body":"plain text, 2-4 sentences"},
-  {"title":"SDG GAP ANALYSIS","body":"plain text, 2-4 sentences"},
-  {"title":"SUSHANT'S TAKE","body":"plain text, 2-4 sentences"}
-]}
-Each body must be plain text only (no HTML tags). Escape double quotes inside strings properly."""
+{
+  "metrics": [
+    {"number": "string", "label": "string"},
+    {"number": "string", "label": "string"},
+    {"number": "string", "label": "string"}
+  ],
+  "sections": [
+    {"title": "MARKET PULSE", "body": "plain text, 2-4 sentences"},
+    {"title": "CAPITAL FLOWS", "body": "plain text, 2-4 sentences"},
+    {"title": "SIGNAL vs NOISE", "body": "plain text, 2-4 sentences"},
+    {"title": "SECTION 4", "body": "plain text, 2-4 sentences"},
+    {"title": "SECTION 5", "body": "plain text, 2-4 sentences"}
+  ]
+}
+
+Rules:
+- Output JSON only.
+- Each body must be plain text only (no HTML tags).
+- metrics must contain exactly 3 items, data-informed and specific to this briefing.
+- Use the exact titles requested in the prompt for sections 4 and 5 (e.g. SECTOR HEAT MAP / FUND MANAGER TAKE).
+- Escape double quotes inside strings properly."""
 
 NAV_AND_OPEN = """  <!-- ── HEADER ── -->
   <header class="site-header">
@@ -81,8 +229,7 @@ NAV_AND_OPEN = """  <!-- ── HEADER ── -->
         <li><a href="services.html">Services</a></li>
         <li><a href="teaching.html">Perspectives</a></li>
         <li><a href="writing.html">Writing</a></li>
-        <li><a href="intelligence.html">Intelligence</a></li>
-        <li><a href="testimonials.html">Testimonials</a></li>
+        <li><a href="intelligence.html">Intel</a></li>
         <li><a href="connect.html">Connect</a></li>
       </ul>
     </nav>
@@ -140,6 +287,14 @@ def sections_fallback(text: str) -> list[dict[str, str]]:
     ]
 
 
+def metrics_fallback() -> list[dict[str, str]]:
+    return [
+        {"number": "—", "label": "Metric"},
+        {"number": "—", "label": "Metric"},
+        {"number": "—", "label": "Metric"},
+    ]
+
+
 def body_to_paragraphs(body: str) -> str:
     body = body.strip()
     if not body:
@@ -182,7 +337,16 @@ def split_signal_noise(body: str) -> tuple[str, str]:
     return body, ""
 
 
-def build_html(sections: list[dict[str, str]], updated_iso: str) -> str:
+def build_html(
+    *,
+    hero_kicker: str,
+    hero_title: str,
+    hero_subtitle: str,
+    accent: str,
+    metrics: list[dict[str, str]],
+    sections: list[dict[str, str]],
+    updated_iso: str,
+) -> str:
     try:
         dt = datetime.fromisoformat(updated_iso.replace("Z", "+00:00"))
         display_ts = dt.strftime("%B %d, %Y at %H:%M UTC")
@@ -192,8 +356,13 @@ def build_html(sections: list[dict[str, str]], updated_iso: str) -> str:
     market_pulse = pick_section(sections, "MARKET PULSE")
     capital_flows = pick_section(sections, "CAPITAL FLOWS")
     signal_noise = pick_section(sections, "SIGNAL vs NOISE")
-    sdg_gap = pick_section(sections, "SDG GAP ANALYSIS")
-    sushant_take = pick_section(sections, "SUSHANT'S TAKE")
+
+    # Section 4 and 5 vary by dashboard; we render by position if needed.
+    section4 = sections[3]["body"].strip() if len(sections) >= 4 and isinstance(sections[3], dict) else ""
+    section4_title = sections[3]["title"].strip() if len(sections) >= 4 and isinstance(sections[3], dict) else "SECTION 4"
+
+    section5 = sections[4]["body"].strip() if len(sections) >= 5 and isinstance(sections[4], dict) else ""
+    section5_title = sections[4]["title"].strip() if len(sections) >= 5 and isinstance(sections[4], dict) else "SECTION 5"
 
     overhyped, opportunity = split_signal_noise(signal_noise)
 
@@ -211,9 +380,10 @@ def build_html(sections: list[dict[str, str]], updated_iso: str) -> str:
             <div style="font-family:'Inter',sans-serif;font-size:15px;font-weight:400;line-height:1.8;color:#1d1d1f;">{body_to_paragraphs(body)}</div>
           </div>"""
 
-    metric_1_num, metric_1_label = "$2.1B", "Voluntary carbon Q1 2026"
-    metric_2_num, metric_2_label = "3.2x", "Brazil Forest Bond oversubscribed"
-    metric_3_num, metric_3_label = "$1.8B", "Mirova Natural Capital Fund III"
+    m = metrics if isinstance(metrics, list) and len(metrics) == 3 else metrics_fallback()
+    metric_1_num, metric_1_label = str(m[0].get("number", "—")), str(m[0].get("label", "Metric"))
+    metric_2_num, metric_2_label = str(m[1].get("number", "—")), str(m[1].get("label", "Metric"))
+    metric_3_num, metric_3_label = str(m[2].get("number", "—")), str(m[2].get("label", "Metric"))
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -232,13 +402,17 @@ def build_html(sections: list[dict[str, str]], updated_iso: str) -> str:
 {NAV_AND_OPEN}
   <main>
 
+    <div style="max-width:980px;margin:0 auto;padding:12px 24px 0;">
+      <a href="intelligence.html" style="font-family:'Inter',sans-serif;font-size:13px;color:#6e6e73;text-decoration:none;">← Back to Intelligence</a>
+    </div>
+
     <!-- ── HERO ── -->
     <section style="background:#1d1d1f;padding:48px 0;color:#ffffff;">
       <div style="max-width:980px;margin:0 auto;padding:0 24px;display:grid;grid-template-columns:1.4fr 1fr;gap:24px;align-items:start;">
         <div>
-          <div style="font-family:'Inter',sans-serif;font-size:11px;font-weight:500;letter-spacing:0.12em;text-transform:uppercase;color:#6e6e73;line-height:1;">NATURE-BASED FINANCE · INTELLIGENCE</div>
-          <h1 style="font-family:'Inter',sans-serif;font-size:40px;font-weight:600;color:#ffffff;letter-spacing:-0.02em;margin:12px 0 10px;line-height:1.1;">Intelligence Briefing</h1>
-          <p style="font-family:'Inter',sans-serif;font-size:16px;font-weight:400;color:#6e6e73;line-height:1.7;max-width:480px;margin:0;">AI-synthesized analysis of capital flows, market signals, and investment gaps in nature-based finance.</p>
+          <div style="font-family:'Inter',sans-serif;font-size:11px;font-weight:500;letter-spacing:0.12em;text-transform:uppercase;color:#6e6e73;line-height:1;">{html.escape(hero_kicker)}</div>
+          <h1 style="font-family:'Inter',sans-serif;font-size:40px;font-weight:600;color:#ffffff;letter-spacing:-0.02em;margin:12px 0 10px;line-height:1.1;">{html.escape(hero_title)}</h1>
+          <p style="font-family:'Inter',sans-serif;font-size:16px;font-weight:400;color:#6e6e73;line-height:1.7;max-width:480px;margin:0;">{html.escape(hero_subtitle)}</p>
           <p style="font-family:'Inter',sans-serif;font-size:12px;color:#444;margin-top:16px;margin-bottom:0;">Last updated: {html.escape(display_ts)}</p>
         </div>
 
@@ -265,41 +439,19 @@ def build_html(sections: list[dict[str, str]], updated_iso: str) -> str:
 
 {card_full("Market Pulse", market_pulse, "#1d1d1f", "#1d1d1f", "MARKET PULSE")}
 
-{card_full("Capital Flows", capital_flows, "#0071e3", "#0071e3", "CAPITAL FLOWS")}
+{card_full("Capital Flows", capital_flows, accent, accent, "CAPITAL FLOWS")}
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
 {card_half("Overhyped", overhyped, "#E24B4A", "#E24B4A", "OVERHYPED")}
 {card_half("Opportunity", opportunity, "#34c759", "#34c759", "OPPORTUNITY")}
         </div>
 
-        <div style="background:#f5f5f7;border-radius:16px;padding:32px;border-left:4px solid #EF9F27;margin-bottom:16px;position:relative;">
-          <span style="position:absolute;top:24px;right:24px;background:#EF9F27;color:#1d1d1f;font-family:'Inter',sans-serif;font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;padding:4px 10px;border-radius:980px;">SDG GAP ANALYSIS</span>
-          <h2 style="font-family:'Inter',sans-serif;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:#1d1d1f;margin:0 0 12px;">SDG Gap Analysis</h2>
-          <div style="font-family:'Inter',sans-serif;font-size:15px;font-weight:400;line-height:1.8;color:#1d1d1f;margin:0 0 16px;">{body_to_paragraphs(sdg_gap)}</div>
-
-          <div style="margin-top:8px;">
-            <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:8px;">
-              <div style="font-family:'Inter',sans-serif;font-size:12px;color:#6e6e73;">SDG 14 — Life Below Water</div>
-              <div style="font-family:'Inter',sans-serif;font-size:12px;color:#6e6e73;">8% funded</div>
-            </div>
-            <div style="background:#e8e8e8;height:6px;border-radius:3px;overflow:hidden;margin-bottom:14px;">
-              <div style="width:8%;background:#EF9F27;height:6px;border-radius:3px;"></div>
-            </div>
-
-            <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:8px;">
-              <div style="font-family:'Inter',sans-serif;font-size:12px;color:#6e6e73;">SDG 15 — Life on Land</div>
-              <div style="font-family:'Inter',sans-serif;font-size:12px;color:#6e6e73;">12% funded</div>
-            </div>
-            <div style="background:#e8e8e8;height:6px;border-radius:3px;overflow:hidden;">
-              <div style="width:12%;background:#EF9F27;height:6px;border-radius:3px;"></div>
-            </div>
-          </div>
-        </div>
+{card_full(section4_title, section4, "#EF9F27", "#EF9F27", section4_title)}
 
         <div style="background:#1d1d1f;color:#ffffff;border-radius:16px;padding:32px;margin-bottom:16px;position:relative;">
-          <span style="position:absolute;top:24px;right:24px;background:rgba(255,255,255,0.1);color:#ffffff;font-family:'Inter',sans-serif;font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;padding:4px 10px;border-radius:980px;">SUSHANT'S TAKE</span>
+          <span style="position:absolute;top:24px;right:24px;background:rgba(255,255,255,0.1);color:#ffffff;font-family:'Inter',sans-serif;font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;padding:4px 10px;border-radius:980px;">{html.escape(section5_title)}</span>
           <div style="font-family:'Inter',sans-serif;font-size:60px;font-weight:300;color:rgba(255,255,255,0.1);line-height:0.9;margin-bottom:8px;user-select:none;">"</div>
-          <div style="font-family:'Inter',sans-serif;font-size:16px;font-weight:400;font-style:italic;line-height:1.8;color:#ffffff;">{body_to_paragraphs(sushant_take)}</div>
+          <div style="font-family:'Inter',sans-serif;font-size:16px;font-weight:400;font-style:italic;line-height:1.8;color:#ffffff;">{body_to_paragraphs(section5)}</div>
         </div>
 
         <p style="text-align:center;font-family:'Inter',sans-serif;font-size:13px;color:#aeaeb2;line-height:1.7;margin:24px auto 0;max-width:720px;">This briefing is AI-synthesized using Claude by Anthropic and updated periodically. It reflects publicly available information and represents analytical perspective, not investment advice.</p>
@@ -319,48 +471,118 @@ def main() -> None:
     if not api_key:
         raise SystemExit("ANTHROPIC_API_KEY is not set.")
 
-    today = date.today().isoformat()
-    user_block_1 = BRIEFING_PROMPT.format(date=today)
+    dashboards = [
+        {
+            "name": "Nature-Based Finance",
+            "outfile": "nature-finance.html",
+            "prompt": BRIEFING_PROMPT,
+            "hero_kicker": "NATURE-BASED FINANCE · INTELLIGENCE",
+            "hero_title": "Nature-Based Finance Pulse",
+            "hero_subtitle": "AI-synthesized analysis of capital flows, market signals, and investment gaps in nature-based finance.",
+            "accent": "#0071e3",
+        },
+        {
+            "name": "Venture Capital Trends",
+            "outfile": "venture-trends.html",
+            "prompt": VC_TRENDS_PROMPT,
+            "hero_kicker": "VENTURE CAPITAL · INTELLIGENCE",
+            "hero_title": "Venture Capital Trends",
+            "hero_subtitle": "AI-synthesized analysis of capital flows, market signals, and sector heat for venture capital.",
+            "accent": "#0071e3",
+        },
+        {
+            "name": "SDG Investment Gap",
+            "outfile": "sdg-gap.html",
+            "prompt": SDG_GAP_PROMPT,
+            "hero_kicker": "IMPACT FINANCE · INTELLIGENCE",
+            "hero_title": "SDG Investment Gap",
+            "hero_subtitle": "AI-synthesized analysis of SDG-aligned capital flows and the most underfunded themes for impact allocators.",
+            "accent": "#EF9F27",
+        },
+        {
+            "name": "AI & Emerging Tech Capital",
+            "outfile": "ai-capital.html",
+            "prompt": AI_CAPITAL_PROMPT,
+            "hero_kicker": "AI & TECHNOLOGY · INTELLIGENCE",
+            "hero_title": "AI & Emerging Tech Capital",
+            "hero_subtitle": "AI-synthesized analysis of funding flows, regulatory signals, and investable opportunities in AI and emerging tech.",
+            "accent": "#6b21a8",
+        },
+        {
+            "name": "Impact Fund Landscape",
+            "outfile": "impact-funds.html",
+            "prompt": IMPACT_FUNDS_PROMPT,
+            "hero_kicker": "IMPACT FUNDS · INTELLIGENCE",
+            "hero_title": "Impact Fund Landscape",
+            "hero_subtitle": "AI-synthesized analysis of fundraising signals, LP appetite, and manager moves across the impact fund market.",
+            "accent": "#E24B4A",
+        },
+    ]
 
     client = anthropic.Anthropic(api_key=api_key)
-    message = client.messages.create(
-        model=MODEL,
-        max_tokens=MAX_TOKENS,
-        messages=[
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": user_block_1},
-                    {"type": "text", "text": JSON_INSTRUCTION},
-                ],
-            }
-        ],
-    )
-
-    parts: list[str] = []
-    for block in message.content:
-        if block.type == "text":
-            parts.append(block.text)
-    raw = "\n".join(parts)
-
-    parsed = extract_json_obj(raw)
-    if parsed and isinstance(parsed.get("sections"), list):
-        sections = []
-        for item in parsed["sections"]:
-            if isinstance(item, dict) and "title" in item and "body" in item:
-                sections.append({"title": item["title"], "body": item["body"]})
-        if len(sections) != 5:
-            sections = sections_fallback(raw)
-    else:
-        sections = sections_fallback(raw)
-
-    updated_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    html_out = build_html(sections, updated_iso)
-
     root = Path(__file__).resolve().parent
-    out_path = root / "pages" / "intelligence.html"
-    out_path.write_text(html_out, encoding="utf-8")
-    print("Intelligence page updated successfully")
+    pages_dir = root / "pages"
+
+    today = date.today().isoformat()
+    for i, dash in enumerate(dashboards, start=1):
+        print(f"Generating dashboard {i}/5: {dash['name']}")
+        user_block_1 = str(dash["prompt"]).format(date=today)
+
+        message = client.messages.create(
+            model=MODEL,
+            max_tokens=MAX_TOKENS,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": user_block_1},
+                        {"type": "text", "text": JSON_INSTRUCTION},
+                    ],
+                }
+            ],
+        )
+
+        parts: list[str] = []
+        for block in message.content:
+            if block.type == "text":
+                parts.append(block.text)
+        raw = "\n".join(parts)
+
+        parsed = extract_json_obj(raw) or {}
+
+        sec_list = parsed.get("sections")
+        if isinstance(sec_list, list):
+            sections: list[dict[str, str]] = []
+            for item in sec_list:
+                if isinstance(item, dict) and "title" in item and "body" in item:
+                    sections.append({"title": str(item["title"]), "body": str(item["body"])})
+            if len(sections) != 5:
+                sections = sections_fallback(raw)
+        else:
+            sections = sections_fallback(raw)
+
+        metrics = parsed.get("metrics")
+        if not (isinstance(metrics, list) and len(metrics) == 3):
+            metrics = metrics_fallback()
+
+        updated_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        html_out = build_html(
+            hero_kicker=str(dash["hero_kicker"]),
+            hero_title=str(dash["hero_title"]),
+            hero_subtitle=str(dash["hero_subtitle"]),
+            accent=str(dash["accent"]),
+            metrics=metrics,
+            sections=sections,
+            updated_iso=updated_iso,
+        )
+
+        out_path = pages_dir / str(dash["outfile"])
+        out_path.write_text(html_out, encoding="utf-8")
+
+        if i < len(dashboards):
+            time.sleep(2)
+
+    print("All dashboards updated successfully")
 
 
 if __name__ == "__main__":
