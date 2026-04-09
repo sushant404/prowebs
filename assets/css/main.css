@@ -636,8 +636,13 @@ nav a,
 
 /* === PAGE HERO — inner pages === */
 .page-hero {
-  padding: clamp(3rem, 5vw, 5rem) 0 clamp(2rem, 3vw, 3rem);
+  padding: clamp(3rem, 5vw, 5rem) 0 40px;
   border-bottom: none;
+}
+
+/* Tighten the gap between page header and first content section */
+.page-hero + .section {
+  padding-top: 48px;
 }
 
 .page-hero-inner {
