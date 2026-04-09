@@ -1887,6 +1887,14 @@ nav a,
   min-width: 0;
 }
 
+/* Inner meta card — same role as .svc-meta on Services */
+.connect-aside-meta {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 20px;
+  border: 1px solid #e8e3db;
+}
+
 .connect-col-label {
   font-family: 'Inter', sans-serif;
   font-size: 11px;
