@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Generate pages/intelligence.html from an Anthropic Claude briefing on nature-based finance.
+Generate intelligence dashboard pages using an LLM API briefing on nature-based finance.
 Requires: pip install anthropic
 Environment: ANTHROPIC_API_KEY
 """
@@ -454,7 +454,7 @@ def build_html(
           <div style="font-family:'Inter',sans-serif;font-size:16px;font-weight:400;font-style:italic;line-height:1.8;color:#ffffff;">{body_to_paragraphs(section5)}</div>
         </div>
 
-        <p style="text-align:center;font-family:'Inter',sans-serif;font-size:13px;color:#aeaeb2;line-height:1.7;margin:24px auto 0;max-width:720px;">This briefing is AI-synthesized using Claude by Anthropic and updated periodically. It reflects publicly available information and represents analytical perspective, not investment advice.</p>
+        <p style="text-align:center;font-family:'Inter',sans-serif;font-size:13px;color:#aeaeb2;line-height:1.7;margin:24px auto 0;max-width:720px;">This briefing is AI-synthesized using a large language model API and updated periodically. It reflects publicly available information and represents analytical perspective, not investment advice.</p>
 
       </div>
     </section>
