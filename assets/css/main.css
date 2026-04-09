@@ -29,7 +29,7 @@
 
   --max-w:      980px;
   --pad-x:      24px;
-  --section-v:  96px;
+  --section-v:  56px;
   --header-h:   52px;
 }
 
@@ -91,7 +91,7 @@ main,
 .container {
   max-width: 980px;
   margin: 0 auto;
-  padding: 0 24px 96px;
+  padding: 0 24px 56px;
   box-sizing: border-box;
   width: 100%;
 }
@@ -260,7 +260,7 @@ nav a,
 
 /* === FOOTER === */
 .site-footer {
-  padding: 48px 0;
+  padding: 28px 0;
   margin-top: auto;
   border-top: none;
 }
@@ -477,7 +477,7 @@ nav a,
 .metrics-inner {
   max-width: var(--max-w);
   margin: 0 auto;
-  padding: 64px 0;
+  padding: 40px 0;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 2rem;
@@ -642,7 +642,7 @@ nav a,
 
 /* Tighten the gap between page header and first content section */
 .page-hero + .section {
-  padding-top: 48px;
+  padding-top: 28px;
 }
 
 .page-hero-inner {
@@ -1049,7 +1049,7 @@ nav a,
 
 /* Mobile */
 @media (max-width: 768px) {
-  :root { --section-v: 64px; }
+  :root { --section-v: 40px; }
 
   /* Mobile nav */
   .nav-toggle { display: flex; }
@@ -1121,7 +1121,7 @@ nav a,
 .testi-card {
   background: var(--surface);
   border-radius: var(--radius-card);
-  padding: 40px;
+  padding: 24px;
 }
 
 .testi-category {
@@ -1237,7 +1237,7 @@ nav a,
 
 .testi-more-note {
   text-align: center;
-  margin-top: 48px;
+  margin-top: 28px;
   font-family: var(--font-sans);
   font-size: 14px;
   color: var(--text-3);
@@ -1310,7 +1310,7 @@ nav a,
 
 /* Responsive testimonials */
 @media (max-width: 768px) {
-  .testi-card  { padding: 28px; }
+  .testi-card  { padding: 20px; }
   .testi-quote { font-size: 16px; }
   .testi-preview-grid { grid-template-columns: 1fr; }
 }
@@ -1323,7 +1323,7 @@ nav a,
 .featured-book {
   background: var(--surface);
   border-radius: var(--radius-card);
-  padding: 48px;
+  padding: 32px;
   display: grid;
   grid-template-columns: 2fr 1fr;
   gap: 3rem;
@@ -1644,7 +1644,7 @@ nav a,
   font-weight: 400;
   line-height: 1.85;
   color: var(--text-1);
-  margin-bottom: 1.375rem;
+  margin-bottom: 16px;
 }
 .about-prose p:last-child { margin-bottom: 0; }
 
@@ -1977,7 +1977,7 @@ nav a,
   align-items: start;
   background: var(--surface);
   border-radius: var(--radius-card);
-  padding: 40px;
+  padding: 24px;
 }
 
 .svc-kicker {
@@ -2094,8 +2094,8 @@ nav a,
 /* Closing CTA section */
 .svc-cta-section {
   text-align: center;
-  padding-top: 80px;
-  padding-bottom: 80px;
+  padding-top: 48px;
+  padding-bottom: 48px;
 }
 
 .svc-cta-title {
@@ -2144,7 +2144,7 @@ nav a,
   align-items: start;
   background: var(--surface);
   border-radius: var(--radius-card);
-  padding: 40px;
+  padding: 24px;
 }
 
 .fw-kicker {
@@ -2216,7 +2216,7 @@ nav a,
 .pov-card {
   background: var(--surface);
   border-radius: var(--radius-card);
-  padding: 48px;
+  padding: 32px;
   max-width: 720px;
   margin: 0 auto;
 }
@@ -2345,7 +2345,7 @@ nav a,
   grid-template-columns: 1fr 2fr auto;
   gap: 32px;
   align-items: start;
-  padding: 28px 0;
+  padding: 18px 0;
   border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
 
@@ -2406,7 +2406,7 @@ nav a,
 
 /* Investment philosophy — clean centered text, no card */
 .venture-pov {
-  padding: 64px 0;
+  padding: 32px 0;
   max-width: 640px;
   margin: 0 auto;
   text-align: center;
