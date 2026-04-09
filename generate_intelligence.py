@@ -81,6 +81,7 @@ NAV_AND_OPEN = """  <!-- ── HEADER ── -->
         <li><a href="services.html">Services</a></li>
         <li><a href="teaching.html">Perspectives</a></li>
         <li><a href="writing.html">Writing</a></li>
+        <li><a href="intelligence.html">Intelligence</a></li>
         <li><a href="testimonials.html">Testimonials</a></li>
         <li><a href="connect.html">Connect</a></li>
       </ul>
